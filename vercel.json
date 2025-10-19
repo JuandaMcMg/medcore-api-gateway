@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "name": "medcore-api-gateway",
+  "builds": [
+    {
+      "src": "src/index.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "3001",
+    "AUTH_SERVICE_URL": "@auth-service-url",
+    "USER_MANAGEMENT_SERVICE_URL": "@user-management-service-url",
+    "ORGANIZATION_SERVICE_URL": "@organization-service-url",
+    "MEDICAL_RECORDS_SERVICE_URL": "@medical-records-service-url",
+    "AUDIT_SERVICE_URL": "@audit-service-url"
+  }
+}
