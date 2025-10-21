@@ -46,7 +46,9 @@ app.get('/health', (req, res) => {
 // Rutas específicas para Auth Service
 app.post('/api/v1/auth/sign-in', proxyToAuthService);
 app.post('/api/v1/auth/sign-up', proxyToAuthService);
-app.get('/api/v1/auth/verify-email', proxyToAuthService);
+app.post('/api/v1/auth/verify-email', proxyToAuthService);
+app.post('/api/v1/auth/resend-verification', proxyToAuthService);
+app.post('/api/v1/auth/logout', proxyToAuthService);
 app.get('/api/v1/auth/health', proxyToAuthService);
 
 // Rutas específicas para User Service
