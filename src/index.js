@@ -43,7 +43,35 @@ app.get('/health', (req, res) => {
   });
 });
 
-// ...existing code...
+// Rutas específicas para Auth Service
+app.post('/api/v1/auth/sign-in', proxyToAuthService);
+app.post('/api/v1/auth/sign-up', proxyToAuthService);
+app.get('/api/v1/auth/verify-email', proxyToAuthService);
+app.get('/api/v1/auth/health', proxyToAuthService);
+
+// Rutas específicas para User Service
+app.get('/api/v1/users', proxyToUserService);
+app.post('/api/v1/users', proxyToUserService);
+app.get('/api/v1/users/:id', proxyToUserService);
+app.put('/api/v1/users/:id', proxyToUserService);
+app.delete('/api/v1/users/:id', proxyToUserService);
+app.get('/api/v1/users/health', proxyToUserService);
+app.patch('/api/v1/users/:id/deactivate', proxyToUserService);
+app.patch('/api/v1/users/:id/activate', proxyToUserService);
+app.put('/api/v1/users/:id/password', proxyToUserService);
+
+// Rutas para Organization Service
+app.use('/api/v1/affiliations', proxyToOrganizationService);
+app.use('/api/v1/departments', proxyToOrganizationService);
+app.use('/api/v1/specialities', proxyToOrganizationService);
+
+// Rutas para Medical Records Service
+app.use('/api/v1/patients', proxyToMedicalRecordsService);
+app.use('/api/v1/diagnostics', proxyToMedicalRecordsService);
+app.use('/api/v1/medical-records', proxyToMedicalRecordsService);
+
+// Rutas para Audit Service
+app.use('/api/v1/audit', proxyToAuditService);
 
 // Función para manejar las solicitudes a Auth Service
 async function proxyToAuthService(req, res) {
@@ -124,12 +152,13 @@ async function proxyToUserService(req, res) {
       console.log('⚠️ [API-GATEWAY] No Authorization header present in request');
     }
     
+    // Simplificamos para evitar problemas de manejo de streams
     const response = await axios({
       method: req.method,
       url: userServiceUrl,
       headers: headers,
       data: req.body,
-      timeout: 15000
+      timeout: 15000 // Aumentamos el timeout para conexiones externas
     });
     
     console.log(`✅ [API-GATEWAY] Response from User Service: ${response.status}`);
@@ -330,7 +359,13 @@ async function proxyToAuditService(req, res) {
   }
 }
 
-// ...existing code...
+// Default route para cualquier otra petición
+app.use((req, res) => {
+  res.status(404).json({ 
+    error: 'Not Found', 
+    message: `Route ${req.originalUrl} not found in API Gateway` 
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`🚀 API Gateway running on port ${PORT}`);
