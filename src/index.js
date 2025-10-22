@@ -65,7 +65,7 @@ app.put('/api/v1/users/:id/password', proxyToUserService);
 // Rutas para Organization Service
 app.use('/api/v1/affiliations', proxyToOrganizationService);
 app.use('/api/v1/departments', proxyToOrganizationService);
-app.use('/api/v1/specialities', proxyToOrganizationService);
+app.use('/api/v1/specialties', proxyToOrganizationService);
 
 // Rutas para Medical Records Service
 app.use('/api/v1/patients', proxyToMedicalRecordsService);
