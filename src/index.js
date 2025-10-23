@@ -1,3 +1,4 @@
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -31,7 +32,7 @@ app.get('/health', (req, res) => {
 // Rutas específicas para Auth Service
 app.post('/api/v1/auth/sign-in', proxyToAuthService);
 app.post('/api/v1/auth/sign-up', proxyToAuthService);
-app.get('/api/v1/auth/verify-email', proxyToAuthService);
+app.post('/api/v1/auth/verify-email', proxyToAuthService);
 app.get('/api/v1/auth/health', proxyToAuthService);
 
 // Rutas específicas para User Service
@@ -43,7 +44,16 @@ app.delete('/api/v1/users/:id', proxyToUserService);
 app.get('/api/v1/users/health', proxyToUserService);
 app.patch('/api/v1/users/:id/deactivate', proxyToUserService);
 app.patch('/api/v1/users/:id/activate', proxyToUserService);
+app.patch('/api/v1/user/:id/toggle-status',proxyToUserService)
 app.put('/api/v1/users/:id/password', proxyToUserService);
+app.get('/api/v1/users/by-role', proxyToUserService);
+app.put('/api/v1/users/doctors/:id', proxyToUserService);
+app.put('/api/v1/users/nurses/:id', proxyToUserService);
+app.patch('/api/v1/users/doctors/state/:id', proxyToUserService);
+app.patch('/api/v1/users/nurses/state/:id', proxyToUserService);
+app.put('/api/v1/users/doctors/:id', proxyToUserService);
+app.put('/api/v1/users/nurses/:id', proxyToUserService);
+app.post('/api/v1/users/bulk-import', proxyToUserService);
 
 // Rutas para Organization Service
 app.use('/api/v1/affiliations', proxyToOrganizationService);
