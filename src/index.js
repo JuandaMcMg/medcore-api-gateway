@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const helmet = require('helmet');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 require('dotenv').config();
 
 const app = express();
@@ -23,8 +24,16 @@ app.use(cors({
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
 app.use(helmet());
+
+// Middleware simple - temporal para testing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Middleware global para debug (TEMPORAL)
+app.use((req, res, next) => {
+  console.log(`🌐 [API-GATEWAY] ALL REQUESTS: ${req.method} ${req.originalUrl}`);
+  next();
+});
 
 // Health check del API Gateway
 app.get('/health', (req, res) => {
@@ -77,9 +86,24 @@ app.use('/api/v1/affiliations', proxyToOrganizationService);
 app.use('/api/v1/departments', proxyToOrganizationService);
 app.use('/api/v1/specialties', proxyToOrganizationService);
 
-// Rutas para Medical Records Service
+// Proxy específico para documentos con soporte de archivos binarios
+app.use('/api/v1/documents', (req, res, next) => {
+  console.log(`🔧 [API-GATEWAY] Documents proxy: ${req.method} ${req.originalUrl}`);
+  
+  // Si es una descarga de documento (GET con ID), usar proxy binario
+  if (req.method === 'GET' && req.originalUrl.match(/\/api\/v1\/documents\/[a-fA-F0-9]{24}$/)) {
+    console.log('📄 [API-GATEWAY] Detected document download - using binary proxy');
+    proxyDocumentDownload(req, res);
+  } else {
+    // Para otras operaciones (upload, list), usar proxy normal
+    proxyToMedicalRecordsService(req, res);
+  }
+});
+
+// Otras rutas para Medical Records Service (DESPUÉS del proxy de documentos)
 app.use('/api/v1/patients', proxyToMedicalRecordsService);
 app.use('/api/v1/diagnostics', proxyToMedicalRecordsService);
+app.use('/api/v1/diagnosis', proxyToMedicalRecordsService);
 app.use('/api/v1/medical-records', proxyToMedicalRecordsService);
 
 // Rutas para Audit Service
@@ -255,16 +279,89 @@ async function proxyToOrganizationService(req, res) {
   }
 }
 
+// Función específica para descargar documentos (respuestas binarias)
+async function proxyDocumentDownload(req, res) {
+  const medicalRecordsServiceUrl = `${MEDICAL_RECORDS_SERVICE_URL}${req.originalUrl}`;
+  console.log(`📄 [API-GATEWAY] Proxying document download: ${medicalRecordsServiceUrl}`);
+  
+  try {
+    const headers = {};
+    
+    // Transferir encabezados de autorización
+    if (req.headers.authorization) {
+      headers['Authorization'] = req.headers.authorization;
+      console.log('🔑 [API-GATEWAY] Forwarding Authorization header for document download');
+    }
+    
+    // Usar axios con responseType 'stream' para archivos
+    const response = await axios({
+      method: 'GET',
+      url: medicalRecordsServiceUrl,
+      headers: headers,
+      responseType: 'stream',
+      timeout: 30000 // Mayor timeout para archivos grandes
+    });
+    
+    console.log(`✅ [API-GATEWAY] Document response from Medical Records Service: ${response.status}`);
+    
+    // Transferir headers de respuesta importantes para archivos
+    if (response.headers['content-type']) {
+      res.setHeader('Content-Type', response.headers['content-type']);
+    }
+    if (response.headers['content-disposition']) {
+      res.setHeader('Content-Disposition', response.headers['content-disposition']);
+    }
+    if (response.headers['content-length']) {
+      res.setHeader('Content-Length', response.headers['content-length']);
+    }
+    
+    // Transferir el status y hacer pipe del stream
+    res.status(response.status);
+    response.data.pipe(res);
+    
+  } catch (error) {
+    console.error('❌ [API-GATEWAY] Error downloading document:', error.message);
+    
+    if (error.response) {
+      res.status(error.response.status).json({
+        message: error.response.data?.message || 'Error downloading document',
+        service: 'api-gateway'
+      });
+    } else if (error.code === 'ECONNREFUSED') {
+      res.status(503).json({ 
+        message: 'Medical Records Service is not available',
+        service: 'api-gateway'
+      });
+    } else {
+      res.status(500).json({ 
+        message: 'Error in API Gateway downloading document',
+        service: 'api-gateway'
+      });
+    }
+  }
+}
+
 // Función para manejar las solicitudes a Medical Records Service
 async function proxyToMedicalRecordsService(req, res) {
   const medicalRecordsServiceUrl = `${MEDICAL_RECORDS_SERVICE_URL}${req.originalUrl}`;
   console.log(`🔄 [API-GATEWAY] Forwarding ${req.method} ${req.originalUrl} to Medical Records Service: ${medicalRecordsServiceUrl}`);
+  console.log(`📋 [API-GATEWAY] Content-Type: ${req.headers['content-type']}`);
   
   try {
-    // Preparar headers incluyendo Authorization
-    const headers = {
-      'Content-Type': 'application/json',
-    };
+    // Preparar headers 
+    const headers = {};
+    
+    // Para multipart/form-data (archivos), preservar el Content-Type original
+    const isMultipart = req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data');
+    
+    if (isMultipart) {
+      console.log('📎 [API-GATEWAY] Detected multipart/form-data - preserving original headers');
+      // Preservar el Content-Type original para FormData
+      headers['Content-Type'] = req.headers['content-type'];
+    } else {
+      // Para JSON normal
+      headers['Content-Type'] = 'application/json';
+    }
     
     // Transferir encabezados de autorización y otros importantes
     if (req.headers.authorization) {
@@ -281,13 +378,25 @@ async function proxyToMedicalRecordsService(req, res) {
       }
     });
     
-    const response = await axios({
+    let axiosConfig = {
       method: req.method,
       url: medicalRecordsServiceUrl,
       headers: headers,
-      data: req.body,
       timeout: 15000
-    });
+    };
+
+    if (isMultipart) {
+      // Para multipart/form-data, usar streaming
+      console.log('🔄 [API-GATEWAY] Using streaming for multipart data');
+      axiosConfig.data = req;
+      axiosConfig.maxBodyLength = Infinity;
+      axiosConfig.maxContentLength = Infinity;
+    } else {
+      // Para JSON normal
+      axiosConfig.data = req.body;
+    }
+
+    const response = await axios(axiosConfig);
     
     console.log(`✅ [API-GATEWAY] Response from Medical Records Service: ${response.status}`);
     res.status(response.status).json(response.data);
