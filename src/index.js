@@ -72,10 +72,14 @@ app.put('/api/v1/users/doctors/:id', proxyToUserService);
 app.put('/api/v1/users/nurses/:id', proxyToUserService);
 app.post('/api/v1/users/bulk-import', proxyToUserService);
 
+app.get('/api/v1/users/patients', proxyToUserService)
+app.get('/api/v1/users/patients/:id', proxyToUserService)
+app.put('/api/v1/users/patients/:id', proxyToUserService)
+
 // Rutas para Organization Service
 app.use('/api/v1/affiliations', proxyToOrganizationService);
 app.use('/api/v1/departments', proxyToOrganizationService);
-app.use('/api/v1/specialties', proxyToOrganizationService);
+app.use(' ', proxyToOrganizationService);
 
 // Rutas para Medical Records Service
 app.use('/api/v1/patients', proxyToMedicalRecordsService);
