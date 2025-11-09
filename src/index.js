@@ -1,8 +1,9 @@
 
+const cors = require('cors');
 const express = require('express');
 const axios = require('axios');
-const cors = require('cors');
 const helmet = require('helmet');
+const path = require("path");
 const { createProxyMiddleware } = require('http-proxy-middleware');
 require('dotenv').config();
 
@@ -20,11 +21,11 @@ const AUDIT_SERVICE_URL = process.env.AUDIT_SERVICE_URL || 'http://localhost:300
 app.use(cors({
   origin: ["http://localhost:3000", "http://localhost:3001", "https://medcore-api-gateway-ms.vercel.app"],
   credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"]
 }));
-app.use(helmet());
 
+app.use(helmet());
 // Middleware simple - temporal para testing
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -52,6 +53,8 @@ app.get('/health', (req, res) => {
     }
   });
 });
+
+app.use("/uploads/profile-pictures", express.static(path.join(__dirname, "uploads/profile-pictures")));
 
 // Rutas específicas para Auth Service
 app.post('/api/v1/auth/sign-in', proxyToAuthService);
@@ -109,6 +112,13 @@ app.use('/api/v1/patients', proxyToMedicalRecordsService);
 app.use('/api/v1/diagnostics', proxyToMedicalRecordsService);
 app.use('/api/v1/diagnosis', proxyToMedicalRecordsService);
 app.use('/api/v1/medical-records', proxyToMedicalRecordsService);
+app.use('/api/v1/documents/upload', proxyToMedicalRecordsService);
+app.use('/api/v1/documents/patient/:patientId',proxyToMedicalRecordsService);
+app.use('/api/v1/documents/:id',proxyToMedicalRecordsService);
+app.use('/api/v1/documents/:id',proxyToMedicalRecordsService);
+
+
+
 
 // Rutas para Audit Service
 app.use('/api/v1/audit', proxyToAuditService);
