@@ -112,6 +112,7 @@ app.use('/api/v1/patients', proxyToMedicalRecordsService);
 app.use('/api/v1/diagnostics', proxyToMedicalRecordsService);
 app.use('/api/v1/diagnosis', proxyToMedicalRecordsService);
 app.use('/api/v1/medical-records', proxyToMedicalRecordsService);
+app.use('/api/v1/medical-orders', proxyToMedicalRecordsService);
 app.use('/api/v1/documents/upload', proxyToMedicalRecordsService);
 app.use('/api/v1/documents/patient/:patientId',proxyToMedicalRecordsService);
 app.use('/api/v1/documents/:id',proxyToMedicalRecordsService);
